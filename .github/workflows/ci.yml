@@ -1,0 +1,52 @@
+name: CI
+on: [pull_request]
+concurrency:
+  group: ${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  build-and-test-server:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Setup Python
+        uses: actions/setup-python@v3
+        with:
+          python-version: "3.8.5"
+          cache: "pip"
+      - name: Install server
+        working-directory: ./server
+        run: pip install -r requirements.txt
+      - name: Create env file
+        working-directory: ./server
+        run: |
+          touch .env
+          echo SECRET_KEY=test >> .env
+      - name: Run server tests
+        working-directory: ./server
+        run: python manage.py test
+  build-and-test-client:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/cache@v2
+        with:
+          key: frontend-deps-${{ hashFiles('client/package.json') }}
+          path: |
+            client/node_modules
+      - name: Use Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: "16.x"
+          cache: "npm"
+          cache-dependency-path: "**/package-lock.json"
+      - name: Install client
+        working-directory: ./client
+        run: npm install
+      - name: Run client tests
+        uses: cypress-io/github-action@v2
+        with:
+          working-directory: ./client
+          build: npm run build
+          start: npm start
+
